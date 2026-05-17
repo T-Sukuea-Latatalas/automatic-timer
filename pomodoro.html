@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal Pomodoro</title>
+    <style>
+        :root {
+            --bg-work: #fcfcfc;
+            --text-work: #444;
+            --accent-work: #e74c3c;
+            
+            --bg-break: #f0f7f4;
+            --text-break: #2d5a27;
+            --accent-break: #27ae60;
+
+            --transition-speed: 0.8s;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            transition: background-color var(--transition-speed), color var(--transition-speed);
+            background-color: var(--bg-work);
+            color: var(--text-work);
+            overflow: hidden;
+        }
+
+        body.break-mode {
+            background-color: var(--bg-break);
+            color: var(--text-break);
+        }
+
+        .container {
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        #status-label {
+            font-size: 1rem;
+            letter-spacing: 0.2rem;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            opacity: 0.6;
+        }
+
+        #timer {
+            font-size: 8rem;
+            font-weight: 200;
+            line-height: 1;
+            margin-bottom: 2rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        button {
+            background: none;
+            border: 1px solid currentColor;
+            color: inherit;
+            padding: 0.8rem 2rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: opacity 0.2s, background-color 0.2s;
+            outline: none;
+        }
+
+        button:hover {
+            background-color: rgba(0,0,0,0.05);
+        }
+
+        #cycle-count {
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            opacity: 0.4;
+        }
+
+        /* 時計・日付のスタイル */
+        #current-info {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            opacity: 0.5;
+            letter-spacing: 0.05rem;
+        }
+
+        .progress-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: rgba(0,0,0,0.03);
+        }
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: currentColor;
+            transition: width 1s linear;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+
+    <div class="container">
+        <div id="status-label">Focus</div>
+        <div id="timer">25:00</div>
+        
+        <div class="controls">
+            <button id="start-btn">START</button>
+            <button id="reset-btn">RESET</button>
+        </div>
+
+        <div id="cycle-count">Completed: 0</div>
+        <!-- 現在時刻表示の追加 -->
+        <div id="current-info">0000/00/00 00:00:00</div>
+    </div>
+
+    <script>
+        const WORK_TIME = 25 * 60;
+        const BREAK_TIME = 5 * 60;
+
+        let timeLeft = WORK_TIME;
+        let timerId = null;
+        let isWorkMode = true;
+        let completedCycles = 0;
+
+        const timerDisplay = document.getElementById('timer');
+        const statusLabel = document.getElementById('status-label');
+        const startBtn = document.getElementById('start-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const cycleDisplay = document.getElementById('cycle-count');
+        const progressBar = document.getElementById('progress-bar');
+        const currentInfoDisplay = document.getElementById('current-info');
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 修正：気づきやすい電子音に変更
+        function playNotificationSound() {
+            const now = audioCtx.currentTime;
+            const beepCount = 3; // 3回鳴らす
+            const beepDuration = 0.1; // 1回の音の長さ
+            const interval = 0.2; // 音と音の間隔
+
+            for (let i = 0; i < beepCount; i++) {
+                const startTime = now + (i * interval);
+                const stopTime = startTime + beepDuration;
+
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, startTime); // 高めの音(A5)
+
+                gainNode.gain.setValueAtTime(0, startTime);
+                gainNode.gain.linearRampToValueAtTime(0.2, startTime + 0.01); // 素早く音量を上げる
+                gainNode.gain.linearRampToValueAtTime(0, stopTime); // 素早く消す
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.start(startTime);
+                oscillator.stop(stopTime);
+            }
+        }
+
+        // 現在時刻と日付を更新する関数
+        function updateClock() {
+            const now = new Date();
+            const Y = now.getFullYear();
+            const M = String(now.getMonth() + 1).padStart(2, '0');
+            const D = String(now.getDate()).padStart(2, '0');
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            currentInfoDisplay.textContent = `${Y}/${M}/${D} ${h}:${m}:${s}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function updateDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.title = `${timerDisplay.textContent} - ${isWorkMode ? 'Focus' : 'Break'}`;
+            const total = isWorkMode ? WORK_TIME : BREAK_TIME;
+            const percentage = ((total - timeLeft) / total) * 100;
+            progressBar.style.width = `${percentage}%`;
+        }
+
+        function switchMode() {
+            isWorkMode = !isWorkMode;
+            timeLeft = isWorkMode ? WORK_TIME : BREAK_TIME;
+            if (isWorkMode) {
+                document.body.classList.remove('break-mode');
+                statusLabel.textContent = 'Focus';
+            } else {
+                document.body.classList.add('break-mode');
+                statusLabel.textContent = 'Break';
+                completedCycles++;
+                cycleDisplay.textContent = `Completed: ${completedCycles}`;
+            }
+            playNotificationSound();
+            updateDisplay();
+        }
+
+        function tick() {
+            if (timeLeft > 0) {
+                timeLeft--;
+                updateDisplay();
+            } else {
+                switchMode();
+            }
+        }
+
+        function startTimer() {
+            if (timerId) {
+                clearInterval(timerId);
+                timerId = null;
+                startBtn.textContent = 'START';
+            } else {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                timerId = setInterval(tick, 1000);
+                startBtn.textContent = 'PAUSE';
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerId);
+            timerId = null;
+            isWorkMode = true;
+            timeLeft = WORK_TIME;
+            document.body.classList.remove('break-mode');
+            statusLabel.textContent = 'Focus';
+            startBtn.textContent = 'START';
+            updateDisplay();
+        }
+
+        // キーボード操作の追加
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault(); // スペースキーによるスクロールを防止
+                startTimer();
+            }
+        });
+
+        startBtn.addEventListener('click', startTimer);
+        resetBtn.addEventListener('click', resetTimer);
+        updateDisplay();
+    </script>
+</body>
+</html>
