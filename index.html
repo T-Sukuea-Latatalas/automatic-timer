@@ -28,7 +28,7 @@
             margin: 0;
             padding: 0;
             display: flex;
-            justify-content: center; /* タイマーを中央に */
+            justify-content: center; 
             align-items: center;
             height: 100vh;
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -36,7 +36,7 @@
             background-color: var(--bg-work);
             color: var(--text-work);
             overflow: hidden;
-            position: relative; /* 雑学パネルの基準点 */
+            position: relative;
         }
 
         body.break-mode {
@@ -44,7 +44,6 @@
             color: var(--text-break);
         }
 
-        /* メインコンテナ：常に中央 */
         .container {
             text-align: center;
             max-width: 500px;
@@ -53,7 +52,6 @@
             z-index: 2;
         }
 
-        /* 雑学表示パネル：右側に浮かせる */
         #trivia-panel {
             position: absolute;
             right: 5%;
@@ -72,7 +70,6 @@
             border-left: 1px solid rgba(255,255,255,0.1);
         }
 
-        /* 休憩中のみ浮き上がって表示 */
         body.break-mode #trivia-panel {
             opacity: 1;
             transform: translateY(-50%) translateX(0);
@@ -133,7 +130,22 @@
         button:hover { background-color: rgba(0,0,0,0.05); }
         body.dark-mode button:hover { background-color: rgba(255,255,255,0.05); }
 
-        #cycle-count { margin-top: 1.5rem; font-size: 0.8rem; opacity: 0.4; }
+        #cycle-container {
+            margin-top: 1.5rem;
+            font-size: 0.8rem;
+            opacity: 0.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 0.2rem 0.5rem;
+            font-size: 0.6rem;
+            opacity: 0.7;
+            border-radius: 3px;
+        }
 
         .settings-area {
             margin-top: 2rem;
@@ -157,7 +169,6 @@
         .progress-container { position: fixed; top: 0; left: 0; width: 100%; height: 3px; background: rgba(0,0,0,0.03); z-index: 10; }
         #progress-bar { height: 100%; width: 0%; background-color: currentColor; transition: width 0.2s linear; opacity: 0.4; }
 
-        /* モバイル対応：画面が狭いときは雑学を非表示にするか、下に配置 */
         @media (max-width: 900px) {
             #trivia-panel {
                 position: relative;
@@ -191,7 +202,10 @@
             <button id="reset-btn">RESET</button>
         </div>
 
-        <div id="cycle-count">Completed (Today): 0</div>
+        <div id="cycle-container">
+            <span id="cycle-count">Completed (Today): 0</span>
+            <button id="reset-cycle-btn" class="btn-small">RESET COUNT</button>
+        </div>
 
         <div class="settings-area">
             <div class="setting-row">
@@ -224,7 +238,6 @@
         <div id="current-info">0000/00/00 00:00:00</div>
     </div>
 
-    <!-- 雑学パネル -->
     <div id="trivia-panel">
         <div id="trivia-title">Did you know?</div>
         <div id="trivia-content">休憩中のみ雑学が表示されます。</div>
@@ -233,7 +246,6 @@
     <audio id="alert-audio"></audio>
 
     <script>
-        // --- スプレッドシート設定 ---
         const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTUEXUgAzhHLUhnS8LrCZSjFtcfTKKCYHdFft89pDkWih_ib9lE6kCHrO6SQbPkg7T2e_ebTckuN4v3/pub?gid=0&single=true&output=csv';
         let triviaList = ["深呼吸をしてリラックスしましょう。"];
 
@@ -256,7 +268,6 @@
             content.textContent = triviaList[randomIndex].replace(/"/g, ''); 
         }
 
-        // --- ロジック ---
         const STORAGE_KEY = 'pomodoro_settings';
         let config = {
             workMs: 25 * 60 * 1000,
@@ -280,6 +291,7 @@
         const resetBtn = document.getElementById('reset-btn');
         const themeBtn = document.getElementById('theme-btn');
         const cycleDisplay = document.getElementById('cycle-count');
+        const resetCycleBtn = document.getElementById('reset-cycle-btn');
         const progressBar = document.getElementById('progress-bar');
         const currentInfoDisplay = document.getElementById('current-info');
         const workInput = document.getElementById('work-min');
@@ -305,9 +317,13 @@
                 volSlider.value = config.volume;
                 soundSelect.value = config.sound;
                 if (config.isDark) { document.body.classList.add('dark-mode'); themeBtn.textContent = 'Light Mode'; }
-                cycleDisplay.textContent = `Completed (Today): ${config.completedCycles}`;
+                updateCycleDisplay();
                 timeLeft = config.workMs;
             }
+        }
+
+        function updateCycleDisplay() {
+            cycleDisplay.textContent = `Completed (Today): ${config.completedCycles}`;
         }
 
         function playNotificationSound() {
@@ -343,7 +359,7 @@
                 document.body.classList.add('break-mode');
                 statusLabel.textContent = 'Break';
                 config.completedCycles++;
-                cycleDisplay.textContent = `Completed (Today): ${config.completedCycles}`;
+                updateCycleDisplay();
                 showRandomTrivia(); 
                 saveSettings();
             }
@@ -381,6 +397,15 @@
             startBtn.textContent = 'START';
             updateDisplay();
         }
+
+        // 今日の回数をリセットする処理
+        resetCycleBtn.addEventListener('click', () => {
+            if (confirm('今日の完了回数をリセットしますか？')) {
+                config.completedCycles = 0;
+                updateCycleDisplay();
+                saveSettings();
+            }
+        });
 
         startBtn.addEventListener('click', startTimer);
         resetBtn.addEventListener('click', resetTimer);
