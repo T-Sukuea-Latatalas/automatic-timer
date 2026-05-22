@@ -8,20 +8,22 @@
         :root {
             --bg-work: #fcfcfc;
             --text-work: #444;
-            --accent-work: #e74c3c;
+            --accent-work: #444;
             --bg-break: #f0f7f4;
             --text-break: #2d5a27;
-            --accent-break: #27ae60;
+            --accent-break: #2d5a27;
             --transition-speed: 0.5s;
+            --ring-bg: rgba(0, 0, 0, 0.12);
         }
 
         body.dark-mode {
             --bg-work: #1a1a1a;
             --text-work: #e0e0e0;
-            --accent-work: #ff6b6b;
+            --accent-work: #e0e0e0;
             --bg-break: #121a14;
             --text-break: #81c784;
             --accent-break: #4caf50;
+            --ring-bg: rgba(255, 255, 255, 0.25);
         }
 
         body {
@@ -42,6 +44,89 @@
         body.break-mode {
             background-color: var(--bg-break);
             color: var(--text-break);
+            --ring-bg: rgba(45, 90, 39, 0.15);
+        }
+
+        body.dark-mode.break-mode {
+            --ring-bg: rgba(129, 199, 132, 0.25);
+        }
+
+        /* --- 背景アニメーション要素 --- */
+        #bg-animation-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        /* 1. Pulse (強化: 不透明度アップ) */
+        .anim-pulse {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 300vmax;
+            height: 300vmax;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, currentColor 0%, transparent 60%);
+            opacity: 0;
+            animation: pulse-frame 6s infinite ease-in-out;
+        }
+        @keyframes pulse-frame { 
+            0%, 100% { opacity: 0.1; transform: translate(-50%, -50%) scale(0.7); } 
+            50% { opacity: 0.3; transform: translate(-50%, -50%) scale(1); } 
+        }
+
+        /* 2. Drift (強化: 個数と不透明度アップ) */
+        .particle {
+            position: absolute;
+            background: currentColor;
+            opacity: 0.2;
+            animation: drift-frame var(--d) infinite linear;
+            bottom: -50px;
+        }
+        @keyframes drift-frame { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(-120vh) rotate(360deg); } }
+
+        /* 3. Flow (強化: 不透明度とシマ模様の密度アップ) */
+        .anim-flow {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, 
+                transparent 0%, 
+                transparent 30%, 
+                currentColor 45%, 
+                transparent 50%,
+                transparent 55%,
+                currentColor 70%,
+                transparent 85%,
+                transparent 100%);
+            background-size: 400% 400%;
+            opacity: 0.25;
+            animation: flow-frame 12s infinite linear;
+        }
+        @keyframes flow-frame { 
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+        }
+
+        /* 4. Cosmic (宇宙 - 維持) */
+        .cosmic-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.25;
+            background: currentColor;
+            animation: cosmic-frame var(--d) infinite alternate ease-in-out;
+        }
+        @keyframes cosmic-frame { 
+            from { transform: translate(0, 0); } 
+            to { transform: translate(var(--x), var(--y)); } 
         }
 
         .container {
@@ -50,6 +135,49 @@
             width: 100%;
             padding: 20px;
             z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .timer-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .progress-ring {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.3s linear, stroke var(--transition-speed);
+            stroke: var(--accent-work);
+            stroke-linecap: round;
+        }
+
+        body.break-mode .progress-ring__circle {
+            stroke: var(--accent-break);
+        }
+
+        .progress-ring__background {
+            stroke: var(--ring-bg);
+            transition: stroke var(--transition-speed);
+        }
+
+        #timer {
+            font-size: 6rem;
+            font-weight: 200;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            z-index: 3;
         }
 
         #trivia-panel {
@@ -94,16 +222,8 @@
             font-size: 1rem;
             letter-spacing: 0.2rem;
             text-transform: uppercase;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             opacity: 0.6;
-        }
-
-        #timer {
-            font-size: 8rem;
-            font-weight: 200;
-            line-height: 1;
-            margin-bottom: 2rem;
-            font-variant-numeric: tabular-nums;
         }
 
         .controls {
@@ -111,6 +231,7 @@
             justify-content: center;
             gap: 1rem;
             flex-wrap: wrap;
+            margin-top: 1rem;
         }
 
         button {
@@ -130,33 +251,52 @@
         button:hover { background-color: rgba(0,0,0,0.05); }
         body.dark-mode button:hover { background-color: rgba(255,255,255,0.05); }
 
-        #cycle-container {
-            margin-top: 1.5rem;
-            font-size: 0.8rem;
-            opacity: 0.6;
+        .settings-wrapper {
+            width: 100%;
+            max-height: 500px;
+            opacity: 1;
+            overflow: hidden;
+            transition: max-height 0.4s ease, opacity 0.3s ease;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            gap: 10px;
         }
 
-        .btn-small {
-            padding: 0.2rem 0.5rem;
-            font-size: 0.6rem;
-            opacity: 0.7;
-            border-radius: 3px;
+        .settings-wrapper.collapsed {
+            max-height: 0;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #toggle-settings-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 10px;
+            margin-top: 1.5rem;
+            opacity: 0.3;
+            color: inherit;
+            transition: opacity 0.2s, transform 0.3s;
+        }
+
+        #toggle-settings-btn:hover { opacity: 0.8; }
+        #toggle-settings-btn.active { transform: rotate(45deg); opacity: 0.8; }
+
+        #cycle-container {
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            opacity: 0.6;
+            cursor: pointer;
+            user-select: none;
         }
 
         .settings-area {
-            margin-top: 2rem;
+            margin-top: 1.5rem;
             display: flex;
             flex-direction: column;
             gap: 1rem;
             font-size: 0.75rem;
-            opacity: 0.5;
-            transition: opacity 0.3s;
         }
-        .settings-area:hover { opacity: 0.9; }
 
         .setting-row { display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap; }
         .setting-group { display: flex; align-items: center; gap: 0.5rem; }
@@ -164,7 +304,7 @@
         input[type="number"] { width: 40px; background: none; border: none; border-bottom: 1px solid currentColor; color: inherit; font-size: 0.8rem; text-align: center; }
         select { background: none; border: none; border-bottom: 1px solid currentColor; color: inherit; font-size: 0.75rem; cursor: pointer; outline: none; padding: 2px; }
         input[type="range"] { width: 70px; cursor: pointer; }
-        #current-info { margin-top: 1.5rem; font-size: 0.8rem; opacity: 0.4; }
+        #current-info { margin-top: 1.5rem; font-size: 0.8rem; opacity: 0.4; margin-bottom: 1rem;}
 
         .progress-container { position: fixed; top: 0; left: 0; width: 100%; height: 3px; background: rgba(0,0,0,0.03); z-index: 10; }
         #progress-bar { height: 100%; width: 0%; background-color: currentColor; transition: width 0.2s linear; opacity: 0.4; }
@@ -176,17 +316,20 @@
                 top: auto;
                 transform: none;
                 width: 80%;
-                margin: 2rem auto 0;
+                margin: 1.5rem auto 0;
                 border-left: none;
                 border-top: 1px solid rgba(0,0,0,0.1);
                 text-align: center;
             }
             body { flex-direction: column; overflow-y: auto; }
-            body.break-mode #trivia-panel { transform: none; }
+            .timer-container { width: 260px; height: 260px; }
+            #timer { font-size: 5rem; }
         }
     </style>
 </head>
 <body>
+
+    <div id="bg-animation-container"></div>
 
     <div class="progress-container">
         <div id="progress-bar"></div>
@@ -194,7 +337,14 @@
 
     <div class="container">
         <div id="status-label">Focus</div>
-        <div id="timer">25:00</div>
+        
+        <div class="timer-container">
+            <svg class="progress-ring" width="320" height="320" viewBox="0 0 320 320">
+                <circle class="progress-ring__background" stroke-width="8" fill="transparent" r="150" cx="160" cy="160"/>
+                <circle id="visual-progress" class="progress-ring__circle" stroke-width="8" stroke-dasharray="942.48" stroke-dashoffset="0" fill="transparent" r="150" cx="160" cy="160"/>
+            </svg>
+            <div id="timer">25:00</div>
+        </div>
         
         <div class="controls">
             <button id="start-btn">START</button>
@@ -202,40 +352,57 @@
             <button id="reset-btn">RESET</button>
         </div>
 
-        <div id="cycle-container">
-            <span id="cycle-count">Completed (Today): 0</span>
-            <button id="reset-cycle-btn" class="btn-small">RESET COUNT</button>
-        </div>
+        <button id="toggle-settings-btn" title="Settings">
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+            </svg>
+        </button>
 
-        <div class="settings-area">
-            <div class="setting-row">
-                <div class="setting-group">
-                    <label>Work</label>
-                    <input type="number" id="work-min" value="25" min="1" max="99">
+        <div id="settings-wrapper" class="settings-wrapper">
+            <div id="cycle-container" title="Secret: Click 5 times to reset">
+                <span id="cycle-count">Completed: 0</span>
+            </div>
+
+            <div class="settings-area">
+                <div class="setting-row">
+                    <div class="setting-group">
+                        <label>Work</label>
+                        <input type="number" id="work-min" value="25" min="1" max="99">
+                    </div>
+                    <div class="setting-group">
+                        <label>Break</label>
+                        <input type="number" id="break-min" value="5" min="1" max="99">
+                    </div>
+                    <div class="setting-group">
+                        <label>Sound</label>
+                        <select id="sound-select">
+                            <option value="警告音1.mp3">警告音1</option>
+                            <option value="目覚まし時計のアラーム.mp3">アラーム</option>
+                            <option value="学校のチャイム.mp3">チャイム</option>
+                        </select>
+                    </div>
+                    <div class="setting-group">
+                        <label>Vol</label>
+                        <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.5">
+                    </div>
                 </div>
-                <div class="setting-group">
-                    <label>Break</label>
-                    <input type="number" id="break-min" value="5" min="1" max="99">
-                </div>
-                <div class="setting-group">
-                    <label>Sound</label>
-                    <select id="sound-select">
-                        <option value="警告音1.mp3">警告音1</option>
-                        <option value="目覚まし時計のアラーム.mp3">アラーム</option>
-                        <option value="学校のチャイム.mp3">チャイム</option>
-                    </select>
-                </div>
-                <div class="setting-group">
-                    <label>Vol</label>
-                    <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.5">
+                <div class="setting-row">
+                    <div class="setting-group">
+                        <label>Theme</label>
+                        <select id="animation-select">
+                            <option value="none">Classic</option>
+                            <option value="pulse">Pulse</option>
+                            <option value="drift">Drift</option>
+                            <option value="flow">Flow</option>
+                            <option value="cosmic">Cosmic</option>
+                        </select>
+                    </div>
+                    <button id="theme-btn" style="padding: 0.4rem 1rem; border-radius: 20px;">Dark Mode</button>
                 </div>
             </div>
-            <div class="setting-row">
-                <button id="theme-btn" style="padding: 0.4rem 1rem; border-radius: 20px;">Dark Mode</button>
-            </div>
-        </div>
 
-        <div id="current-info">0000/00/00 00:00:00</div>
+            <div id="current-info">0000/00/00 00:00:00</div>
+        </div>
     </div>
 
     <div id="trivia-panel">
@@ -254,12 +421,8 @@
                 const response = await fetch(SHEET_CSV_URL);
                 const csvText = await response.text();
                 const rows = csvText.split(/\r?\n/).filter(row => row.trim() !== "");
-                if (rows.length > 1) {
-                    triviaList = rows.slice(1);
-                }
-            } catch (e) {
-                console.error("Trivia load error:", e);
-            }
+                if (rows.length > 1) triviaList = rows.slice(1);
+            } catch (e) { console.error("Trivia load error:", e); }
         }
 
         function showRandomTrivia() {
@@ -276,7 +439,8 @@
             sound: '警告音1.mp3',
             isDark: false,
             completedCycles: 0,
-            lastDate: new Date().toLocaleDateString()
+            lastDate: new Date().toLocaleDateString(),
+            animSet: 'none'
         };
 
         let timeLeft = config.workMs;
@@ -291,17 +455,118 @@
         const resetBtn = document.getElementById('reset-btn');
         const themeBtn = document.getElementById('theme-btn');
         const cycleDisplay = document.getElementById('cycle-count');
-        const resetCycleBtn = document.getElementById('reset-cycle-btn');
+        const cycleContainer = document.getElementById('cycle-container');
         const progressBar = document.getElementById('progress-bar');
+        const visualProgress = document.getElementById('visual-progress');
         const currentInfoDisplay = document.getElementById('current-info');
         const workInput = document.getElementById('work-min');
         const breakInput = document.getElementById('break-min');
         const volSlider = document.getElementById('vol-slider');
         const soundSelect = document.getElementById('sound-select');
+        const animationSelect = document.getElementById('animation-select');
+        const bgAnimContainer = document.getElementById('bg-animation-container');
         const alertAudio = document.getElementById('alert-audio');
+        const settingsWrapper = document.getElementById('settings-wrapper');
+        const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
+
+        const RADIUS = 150;
+        const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+        let skipClickCount = 0;
+        let lastSkipClickTime = 0;
+        const skipPranks = [
+            "そんなに飛ばさないでください（笑）休憩も大事ですが仕事もですよ！",
+            "おや、指が滑りましたか？サボりすぎるとタイマーが泣いちゃいますよ。",
+            "スキップの達人ですね！でも、たまには最後まで頑張ってみませんか？",
+            "ちょっと一息つきましょう。そんなに急いでも時間は増えませんよ〜。"
+        ];
+
+        function handleSkip() {
+            const now = Date.now();
+            if (now - lastSkipClickTime < 2000) { skipClickCount++; } 
+            else { skipClickCount = 1; }
+            lastSkipClickTime = now;
+            if (skipClickCount >= 3) {
+                const prank = skipPranks[Math.floor(Math.random() * skipPranks.length)];
+                alert(prank);
+                skipClickCount = 0;
+            } else { switchMode(); }
+        }
+
+        let secretClickCount = 0;
+        let lastSecretClickTime = 0;
+        cycleContainer.addEventListener('click', () => {
+            const now = Date.now();
+            if (now - lastSecretClickTime < 1000) { secretClickCount++; } 
+            else { secretClickCount = 1; }
+            lastSecretClickTime = now;
+            if (secretClickCount >= 5) {
+                if (confirm('（隠しコマンド）今日の完了回数をリセットしますか？')) {
+                    config.completedCycles = 0;
+                    updateCycleDisplay();
+                    saveSettings();
+                }
+                secretClickCount = 0;
+            }
+        });
+
+        // --- 背景アニメーションの更新 ---
+        function updateAnimation() {
+            bgAnimContainer.innerHTML = '';
+            const type = config.animSet;
+            if (type === 'none') return;
+
+            if (type === 'pulse') {
+                const div = document.createElement('div');
+                div.className = 'anim-pulse';
+                bgAnimContainer.appendChild(div);
+            } else if (type === 'drift') {
+                // 粒子数を増やして強化
+                for (let i = 0; i < 25; i++) {
+                    const p = document.createElement('div');
+                    p.className = 'particle';
+                    const size = Math.random() * 20 + 10;
+                    p.style.width = size + 'px';
+                    p.style.height = size + 'px';
+                    p.style.left = Math.random() * 100 + 'vw';
+                    p.style.setProperty('--d', (Math.random() * 10 + 10) + 's');
+                    p.style.animationDelay = (Math.random() * 10) + 's';
+                    if (!isWorkMode) p.style.borderRadius = '50%';
+                    bgAnimContainer.appendChild(p);
+                }
+            } else if (type === 'flow') {
+                const div = document.createElement('div');
+                div.className = 'anim-flow';
+                bgAnimContainer.appendChild(div);
+            } else if (type === 'cosmic') {
+                for (let i = 0; i < 14; i++) {
+                    const orb = document.createElement('div');
+                    orb.className = 'cosmic-orb';
+                    const size = Math.random() * 250 + 150;
+                    orb.style.width = size + 'px';
+                    orb.style.height = size + 'px';
+                    orb.style.left = Math.random() * 100 + 'vw';
+                    orb.style.top = Math.random() * 100 + 'vh';
+                    orb.style.setProperty('--x', (Math.random() * 500 - 250) + 'px');
+                    orb.style.setProperty('--y', (Math.random() * 500 - 250) + 'px');
+                    orb.style.setProperty('--d', (Math.random() * 5 + 3) + 's');
+                    bgAnimContainer.appendChild(orb);
+                }
+            }
+        }
+
+        function toggleSettings() {
+            const isCollapsed = settingsWrapper.classList.toggle('collapsed');
+            toggleSettingsBtn.classList.toggle('active', !isCollapsed);
+        }
 
         function saveSettings() {
-            const dataToSave = { ...config, isDark: document.body.classList.contains('dark-mode'), sound: soundSelect.value };
+            const dataToSave = { 
+                ...config, 
+                isDark: document.body.classList.contains('dark-mode'), 
+                sound: soundSelect.value,
+                animSet: animationSelect.value
+            };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
         }
 
@@ -316,20 +581,22 @@
                 breakInput.value = config.breakMs / 60000;
                 volSlider.value = config.volume;
                 soundSelect.value = config.sound;
+                animationSelect.value = config.animSet || 'none';
                 if (config.isDark) { document.body.classList.add('dark-mode'); themeBtn.textContent = 'Light Mode'; }
                 updateCycleDisplay();
                 timeLeft = config.workMs;
+                updateAnimation();
             }
         }
 
         function updateCycleDisplay() {
-            cycleDisplay.textContent = `Completed (Today): ${config.completedCycles}`;
+            cycleDisplay.textContent = `Completed: ${config.completedCycles}`;
         }
 
         function playNotificationSound() {
             alertAudio.src = soundSelect.value;
             alertAudio.volume = config.volume;
-            alertAudio.play().catch(e => console.log("Playback error:", e));
+            alertAudio.play().catch(e => console.log("Sound error:", e));
         }
 
         function updateClock() {
@@ -344,8 +611,12 @@
             const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             timerDisplay.textContent = timeStr;
             document.title = `${timeStr} - ${isWorkMode ? 'Focus' : 'Break'}`;
+            
             const total = isWorkMode ? config.workMs : config.breakMs;
-            progressBar.style.width = `${Math.min(100, ((total - timeLeft) / total) * 100)}%`;
+            const progressRatio = (total - timeLeft) / total;
+            progressBar.style.width = `${Math.min(100, progressRatio * 100)}%`;
+            const offset = CIRCUMFERENCE - (Math.min(1, progressRatio) * CIRCUMFERENCE);
+            visualProgress.style.strokeDashoffset = offset;
         }
 
         function switchMode() {
@@ -364,6 +635,7 @@
                 saveSettings();
             }
             
+            updateAnimation();
             playNotificationSound();
             if (timerId) expectedEndTime = Date.now() + timeLeft;
             updateDisplay();
@@ -381,8 +653,12 @@
                 timerId = null;
                 startBtn.textContent = 'START';
             } else {
+                if (isWorkMode) {
+                    settingsWrapper.classList.add('collapsed');
+                    toggleSettingsBtn.classList.remove('active');
+                }
                 expectedEndTime = Date.now() + timeLeft;
-                timerId = setInterval(tick, 200);
+                timerId = setInterval(tick, 100); 
                 startBtn.textContent = 'PAUSE';
             }
         }
@@ -395,21 +671,14 @@
             document.body.classList.remove('break-mode');
             statusLabel.textContent = 'Focus';
             startBtn.textContent = 'START';
+            updateAnimation();
             updateDisplay();
         }
 
-        // 今日の回数をリセットする処理
-        resetCycleBtn.addEventListener('click', () => {
-            if (confirm('今日の完了回数をリセットしますか？')) {
-                config.completedCycles = 0;
-                updateCycleDisplay();
-                saveSettings();
-            }
-        });
-
+        toggleSettingsBtn.addEventListener('click', toggleSettings);
         startBtn.addEventListener('click', startTimer);
         resetBtn.addEventListener('click', resetTimer);
-        skipBtn.addEventListener('click', switchMode);
+        skipBtn.addEventListener('click', handleSkip);
         themeBtn.addEventListener('click', () => {
             document.body.classList.toggle('dark-mode');
             themeBtn.textContent = document.body.classList.contains('dark-mode') ? 'Light Mode' : 'Dark Mode';
@@ -429,6 +698,11 @@
         volSlider.addEventListener('input', () => {
             config.volume = parseFloat(volSlider.value);
             alertAudio.volume = config.volume;
+            saveSettings();
+        });
+        animationSelect.addEventListener('change', () => {
+            config.animSet = animationSelect.value;
+            updateAnimation();
             saveSettings();
         });
 
