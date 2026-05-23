@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minimal Pomodoro</title>
     <style>
         :root {
@@ -32,12 +32,12 @@
             display: flex;
             justify-content: center; 
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             font-family: 'Helvetica Neue', Arial, sans-serif;
             transition: background-color var(--transition-speed), color var(--transition-speed);
             background-color: var(--bg-work);
             color: var(--text-work);
-            overflow: hidden;
+            overflow-x: hidden;
             position: relative;
         }
 
@@ -51,7 +51,7 @@
             --ring-bg: rgba(129, 199, 132, 0.25);
         }
 
-        /* --- 背景アニメーション要素 --- */
+        /* --- 背景アニメーション --- */
         #bg-animation-container {
             position: absolute;
             top: 0;
@@ -63,7 +63,6 @@
             overflow: hidden;
         }
 
-        /* 1. Pulse (強化: 不透明度アップ) */
         .anim-pulse {
             position: absolute;
             top: 50%;
@@ -80,7 +79,6 @@
             50% { opacity: 0.3; transform: translate(-50%, -50%) scale(1); } 
         }
 
-        /* 2. Drift (強化: 個数と不透明度アップ) */
         .particle {
             position: absolute;
             background: currentColor;
@@ -90,22 +88,13 @@
         }
         @keyframes drift-frame { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(-120vh) rotate(360deg); } }
 
-        /* 3. Flow (強化: 不透明度とシマ模様の密度アップ) */
         .anim-flow {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, 
-                transparent 0%, 
-                transparent 30%, 
-                currentColor 45%, 
-                transparent 50%,
-                transparent 55%,
-                currentColor 70%,
-                transparent 85%,
-                transparent 100%);
+            background: linear-gradient(135deg, transparent 0%, transparent 30%, currentColor 45%, transparent 50%, transparent 55%, currentColor 70%, transparent 85%, transparent 100%);
             background-size: 400% 400%;
             opacity: 0.25;
             animation: flow-frame 12s infinite linear;
@@ -115,7 +104,6 @@
             100% { background-position: 100% 100%; }
         }
 
-        /* 4. Cosmic (宇宙 - 維持) */
         .cosmic-orb {
             position: absolute;
             border-radius: 50%;
@@ -129,10 +117,11 @@
             to { transform: translate(var(--x), var(--y)); } 
         }
 
+        /* --- UI Components --- */
         .container {
             text-align: center;
             max-width: 500px;
-            width: 100%;
+            width: 90%;
             padding: 20px;
             z-index: 2;
             display: flex;
@@ -142,8 +131,8 @@
 
         .timer-container {
             position: relative;
-            width: 320px;
-            height: 320px;
+            width: min(80vw, 320px);
+            height: min(80vw, 320px);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -154,6 +143,8 @@
             position: absolute;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
             transform: rotate(-90deg);
         }
 
@@ -173,50 +164,89 @@
         }
 
         #timer {
-            font-size: 6rem;
+            font-size: min(18vw, 6rem);
             font-weight: 200;
             line-height: 1;
             font-variant-numeric: tabular-nums;
             z-index: 3;
         }
 
-        #trivia-panel {
+        /* --- サイドパネル共通 --- */
+        .side-panel {
             position: absolute;
-            right: 5%;
             top: 50%;
-            transform: translateY(-50%) translateX(20px);
-            width: 260px;
+            transform: translateY(-50%);
+            width: 250px;
             padding: 1.5rem;
-            border-left: 1px solid rgba(0,0,0,0.1);
             opacity: 0;
             transition: all 0.5s ease;
-            text-align: left;
             pointer-events: none;
+            z-index: 5;
+            background: rgba(150, 150, 150, 0.05);
+            backdrop-filter: blur(5px);
+            border-radius: 12px;
+            text-align: left;
         }
 
-        body.dark-mode #trivia-panel {
-            border-left: 1px solid rgba(255,255,255,0.1);
+        /* 右側: 雑学 */
+        #trivia-panel {
+            right: 5%;
+            border-left: 1px solid rgba(0,0,0,0.1);
+            transform: translateY(-50%) translateX(20px);
         }
-
+        body.dark-mode #trivia-panel { border-left: 1px solid rgba(255,255,255,0.1); }
         body.break-mode #trivia-panel {
             opacity: 1;
             transform: translateY(-50%) translateX(0);
             pointer-events: auto;
         }
 
-        #trivia-title {
+        /* 左側: 履歴 */
+        #history-panel {
+            left: 5%;
+            border-right: 1px solid rgba(0,0,0,0.1);
+            transform: translateY(-50%) translateX(-20px);
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+        body.dark-mode #history-panel { border-right: 1px solid rgba(255,255,255,0.1); }
+        
+        body.break-mode #history-panel,
+        #history-panel.manual-show {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0);
+            pointer-events: auto;
+        }
+
+        .panel-title {
             font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 0.15rem;
             margin-bottom: 0.8rem;
             opacity: 0.5;
+            text-align: center;
         }
 
-        #trivia-content {
-            font-size: 0.95rem;
-            line-height: 1.7;
+        #history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            font-size: 0.85rem;
             font-weight: 300;
         }
+        #history-list li {
+            display: flex;
+            flex-direction: column;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        #history-list li .date { opacity: 0.6; font-size: 0.7rem; margin-bottom: 2px; }
+        #history-list li .stats { display: flex; justify-content: space-between; }
+        #history-list li .skips { opacity: 0.4; font-size: 0.75rem; }
+
+        body.dark-mode #history-list li { border-bottom: 1px solid rgba(255,255,255,0.05); }
 
         #status-label {
             font-size: 1rem;
@@ -229,16 +259,17 @@
         .controls {
             display: flex;
             justify-content: center;
-            gap: 1rem;
+            gap: 0.8rem;
             flex-wrap: wrap;
             margin-top: 1rem;
+            width: 100%;
         }
 
         button {
             background: none;
             border: 1px solid currentColor;
             color: inherit;
-            padding: 0.8rem 1.5rem;
+            padding: 0.8rem 1.2rem;
             font-size: 0.8rem;
             cursor: pointer;
             border-radius: 4px;
@@ -246,10 +277,44 @@
             outline: none;
             text-transform: uppercase;
             letter-spacing: 0.1rem;
+            min-width: 90px;
         }
 
         button:hover { background-color: rgba(0,0,0,0.05); }
         body.dark-mode button:hover { background-color: rgba(255,255,255,0.05); }
+
+        /* アイコンボタン（履歴・設定） */
+        .icon-btn {
+            background: none !important;
+            border: none;
+            cursor: pointer;
+            padding: 12px;
+            opacity: 0.4;
+            color: inherit;
+            transition: opacity 0.2s, transform 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .icon-btn:hover { 
+            opacity: 0.8; 
+            background-color: transparent !important;
+        }
+
+        #toggle-history-btn {
+            position: fixed;
+            bottom: 15px;
+            left: 15px;
+        }
+
+        #toggle-settings-btn {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+        }
+        #toggle-settings-btn.active { transform: rotate(45deg); opacity: 0.8; }
 
         .settings-wrapper {
             width: 100%;
@@ -260,30 +325,18 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            margin-top: 1rem;
         }
 
         .settings-wrapper.collapsed {
             max-height: 0;
             opacity: 0;
             pointer-events: none;
+            margin-top: 0;
         }
-
-        #toggle-settings-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 10px;
-            margin-top: 1.5rem;
-            opacity: 0.3;
-            color: inherit;
-            transition: opacity 0.2s, transform 0.3s;
-        }
-
-        #toggle-settings-btn:hover { opacity: 0.8; }
-        #toggle-settings-btn.active { transform: rotate(45deg); opacity: 0.8; }
 
         #cycle-container {
-            margin-top: 1rem;
+            margin-top: 0.5rem;
             font-size: 0.8rem;
             opacity: 0.6;
             cursor: pointer;
@@ -291,39 +344,79 @@
         }
 
         .settings-area {
-            margin-top: 1.5rem;
+            margin-top: 1rem;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 1.2rem;
             font-size: 0.75rem;
+            width: 100%;
         }
 
-        .setting-row { display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .setting-row { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 1rem; 
+            flex-wrap: wrap; 
+        }
         .setting-group { display: flex; align-items: center; gap: 0.5rem; }
 
-        input[type="number"] { width: 40px; background: none; border: none; border-bottom: 1px solid currentColor; color: inherit; font-size: 0.8rem; text-align: center; }
-        select { background: none; border: none; border-bottom: 1px solid currentColor; color: inherit; font-size: 0.75rem; cursor: pointer; outline: none; padding: 2px; }
-        input[type="range"] { width: 70px; cursor: pointer; }
-        #current-info { margin-top: 1.5rem; font-size: 0.8rem; opacity: 0.4; margin-bottom: 1rem;}
+        input[type="number"] { width: 45px; background: none; border: none; border-bottom: 1px solid currentColor; color: inherit; font-size: 0.9rem; text-align: center; padding: 2px 0; }
+        select { background: none; border: none; border-bottom: 1px solid currentColor; color: inherit; font-size: 0.8rem; cursor: pointer; outline: none; padding: 2px; }
+        input[type="range"] { width: 80px; cursor: pointer; }
+        #current-info { margin-top: 1rem; font-size: 0.75rem; opacity: 0.4; margin-bottom: 1rem;}
 
         .progress-container { position: fixed; top: 0; left: 0; width: 100%; height: 3px; background: rgba(0,0,0,0.03); z-index: 10; }
         #progress-bar { height: 100%; width: 0%; background-color: currentColor; transition: width 0.2s linear; opacity: 0.4; }
 
-        @media (max-width: 900px) {
-            #trivia-panel {
+        /* --- モバイル用レイアウト切り替え --- */
+        @media (max-width: 600px) {
+            body {
+                align-items: flex-start;
+                padding-top: 5vh;
+            }
+            .container {
+                width: 90%;
+                padding: 10px;
+            }
+            .side-panel {
                 position: relative;
-                right: auto;
                 top: auto;
-                transform: none;
-                width: 80%;
-                margin: 1.5rem auto 0;
-                border-left: none;
-                border-top: 1px solid rgba(0,0,0,0.1);
+                left: auto !important;
+                right: auto !important;
+                transform: none !important;
+                width: 100%;
+                max-width: 320px;
+                box-sizing: border-box;
+                margin: 15px auto;
+                border: 1px solid rgba(0,0,0,0.1) !important;
+                opacity: 0; /* JS制御に任せる */
+                pointer-events: none;
+                display: none; 
                 text-align: center;
             }
-            body { flex-direction: column; overflow-y: auto; }
-            .timer-container { width: 260px; height: 260px; }
-            #timer { font-size: 5rem; }
+            body.dark-mode .side-panel {
+                border: 1px solid rgba(255,255,255,0.1) !important;
+            }
+            
+            /* 休憩中、または手動表示時に表示 */
+            body.break-mode #trivia-panel,
+            body.break-mode #history-panel,
+            #history-panel.manual-show { 
+                display: block;
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            .setting-row {
+                gap: 0.8rem;
+            }
+            .setting-group label {
+                font-size: 0.7rem;
+            }
+            #timer {
+                font-size: 20vw;
+            }
         }
     </style>
 </head>
@@ -335,11 +428,31 @@
         <div id="progress-bar"></div>
     </div>
 
+    <!-- 左下: 履歴ボタン -->
+    <button id="toggle-history-btn" class="icon-btn" title="Toggle History">
+        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+        </svg>
+    </button>
+
+    <!-- 右下: 設定ボタン -->
+    <button id="toggle-settings-btn" class="icon-btn" title="Settings">
+        <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+        </svg>
+    </button>
+
     <div class="container">
+        <!-- 履歴パネル -->
+        <div id="history-panel" class="side-panel">
+            <div class="panel-title">Monthly Logs</div>
+            <ul id="history-list"></ul>
+        </div>
+
         <div id="status-label">Focus</div>
         
         <div class="timer-container">
-            <svg class="progress-ring" width="320" height="320" viewBox="0 0 320 320">
+            <svg class="progress-ring" viewBox="0 0 320 320">
                 <circle class="progress-ring__background" stroke-width="8" fill="transparent" r="150" cx="160" cy="160"/>
                 <circle id="visual-progress" class="progress-ring__circle" stroke-width="8" stroke-dasharray="942.48" stroke-dashoffset="0" fill="transparent" r="150" cx="160" cy="160"/>
             </svg>
@@ -352,14 +465,8 @@
             <button id="reset-btn">RESET</button>
         </div>
 
-        <button id="toggle-settings-btn" title="Settings">
-            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-            </svg>
-        </button>
-
-        <div id="settings-wrapper" class="settings-wrapper">
-            <div id="cycle-container" title="Secret: Click 5 times to reset">
+        <div id="settings-wrapper" class="settings-wrapper collapsed">
+            <div id="cycle-container" title="Secret: Click 5 times to reset today">
                 <span id="cycle-count">Completed: 0</span>
             </div>
 
@@ -374,6 +481,12 @@
                         <input type="number" id="break-min" value="5" min="1" max="99">
                     </div>
                     <div class="setting-group">
+                        <label>Vol</label>
+                        <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.5">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-group">
                         <label>Sound</label>
                         <select id="sound-select">
                             <option value="警告音1.mp3">警告音1</option>
@@ -381,12 +494,6 @@
                             <option value="学校のチャイム.mp3">チャイム</option>
                         </select>
                     </div>
-                    <div class="setting-group">
-                        <label>Vol</label>
-                        <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.5">
-                    </div>
-                </div>
-                <div class="setting-row">
                     <div class="setting-group">
                         <label>Theme</label>
                         <select id="animation-select">
@@ -397,17 +504,18 @@
                             <option value="cosmic">Cosmic</option>
                         </select>
                     </div>
-                    <button id="theme-btn" style="padding: 0.4rem 1rem; border-radius: 20px;">Dark Mode</button>
+                    <button id="theme-btn" style="padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.7rem;">Dark Mode</button>
                 </div>
             </div>
 
             <div id="current-info">0000/00/00 00:00:00</div>
         </div>
-    </div>
 
-    <div id="trivia-panel">
-        <div id="trivia-title">Did you know?</div>
-        <div id="trivia-content">休憩中のみ雑学が表示されます。</div>
+        <!-- 雑学パネル -->
+        <div id="trivia-panel" class="side-panel">
+            <div class="panel-title">Did you know?</div>
+            <div id="trivia-content">休憩中のみ雑学が表示されます。</div>
+        </div>
     </div>
 
     <audio id="alert-audio"></audio>
@@ -439,8 +547,10 @@
             sound: '警告音1.mp3',
             isDark: false,
             completedCycles: 0,
+            skippedWorkCount: 0,
             lastDate: new Date().toLocaleDateString(),
-            animSet: 'none'
+            animSet: 'none',
+            history: {}
         };
 
         let timeLeft = config.workMs;
@@ -468,66 +578,100 @@
         const alertAudio = document.getElementById('alert-audio');
         const settingsWrapper = document.getElementById('settings-wrapper');
         const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
+        const toggleHistoryBtn = document.getElementById('toggle-history-btn');
+        const historyPanel = document.getElementById('history-panel');
+        const historyList = document.getElementById('history-list');
 
         const RADIUS = 150;
         const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
+        function updateHistoryData() {
+            const today = new Date().toLocaleDateString();
+            config.history[today] = {
+                completed: config.completedCycles,
+                skipped: config.skippedWorkCount
+            };
+            renderHistory();
+        }
+
+        function renderHistory() {
+            historyList.innerHTML = '';
+            const sortedDates = Object.keys(config.history).sort((a, b) => new Date(b) - new Date(a));
+            sortedDates.slice(0, 31).forEach(date => {
+                const li = document.createElement('li');
+                const data = config.history[date];
+                const comp = (typeof data === 'object') ? data.completed : data;
+                const skip = (typeof data === 'object') ? (data.skipped || 0) : 0;
+                li.innerHTML = `
+                    <div class="date">${date}</div>
+                    <div class="stats">
+                        <span>${comp} cycles</span>
+                        <span class="skips">Skips: ${skip}</span>
+                    </div>
+                `;
+                historyList.appendChild(li);
+            });
+        }
+
+        toggleHistoryBtn.addEventListener('click', () => {
+            historyPanel.classList.toggle('manual-show');
+        });
+
         let skipClickCount = 0;
         let lastSkipClickTime = 0;
-        const skipPranks = [
-            "そんなに飛ばさないでください（笑）休憩も大事ですが仕事もですよ！",
-            "おや、指が滑りましたか？サボりすぎるとタイマーが泣いちゃいますよ。",
-            "スキップの達人ですね！でも、たまには最後まで頑張ってみませんか？",
-            "ちょっと一息つきましょう。そんなに急いでも時間は増えませんよ〜。"
-        ];
+        const skipPranks = ["そんなに飛ばさないでください（笑）","おや、指が滑りましたか？","スキップの達人ですね！","ちょっと一息つきましょう。"];
 
         function handleSkip() {
             const now = Date.now();
-            if (now - lastSkipClickTime < 2000) { skipClickCount++; } 
-            else { skipClickCount = 1; }
+            if (now - lastSkipClickTime < 2000) skipClickCount++;
+            else skipClickCount = 1;
             lastSkipClickTime = now;
+
+            if (isWorkMode) {
+                config.skippedWorkCount++;
+                updateHistoryData();
+                saveSettings();
+            }
+
             if (skipClickCount >= 3) {
-                const prank = skipPranks[Math.floor(Math.random() * skipPranks.length)];
-                alert(prank);
+                alert(skipPranks[Math.floor(Math.random() * skipPranks.length)]);
                 skipClickCount = 0;
-            } else { switchMode(); }
+            } else { 
+                switchMode(); 
+            }
         }
 
         let secretClickCount = 0;
         let lastSecretClickTime = 0;
         cycleContainer.addEventListener('click', () => {
             const now = Date.now();
-            if (now - lastSecretClickTime < 1000) { secretClickCount++; } 
-            else { secretClickCount = 1; }
+            if (now - lastSecretClickTime < 1000) secretClickCount++;
+            else secretClickCount = 1;
             lastSecretClickTime = now;
             if (secretClickCount >= 5) {
-                if (confirm('（隠しコマンド）今日の完了回数をリセットしますか？')) {
+                if (confirm('今日の完了回数とスキップ数をリセットしますか？')) {
                     config.completedCycles = 0;
+                    config.skippedWorkCount = 0;
                     updateCycleDisplay();
+                    updateHistoryData();
                     saveSettings();
                 }
                 secretClickCount = 0;
             }
         });
 
-        // --- 背景アニメーションの更新 ---
         function updateAnimation() {
             bgAnimContainer.innerHTML = '';
             const type = config.animSet;
             if (type === 'none') return;
-
             if (type === 'pulse') {
-                const div = document.createElement('div');
-                div.className = 'anim-pulse';
+                const div = document.createElement('div'); div.className = 'anim-pulse';
                 bgAnimContainer.appendChild(div);
             } else if (type === 'drift') {
-                // 粒子数を増やして強化
                 for (let i = 0; i < 25; i++) {
-                    const p = document.createElement('div');
-                    p.className = 'particle';
+                    const p = document.createElement('div'); p.className = 'particle';
                     const size = Math.random() * 20 + 10;
-                    p.style.width = size + 'px';
-                    p.style.height = size + 'px';
+                    p.style.width = size + 'px'; p.style.height = size + 'px';
                     p.style.left = Math.random() * 100 + 'vw';
                     p.style.setProperty('--d', (Math.random() * 10 + 10) + 's');
                     p.style.animationDelay = (Math.random() * 10) + 's';
@@ -535,18 +679,14 @@
                     bgAnimContainer.appendChild(p);
                 }
             } else if (type === 'flow') {
-                const div = document.createElement('div');
-                div.className = 'anim-flow';
+                const div = document.createElement('div'); div.className = 'anim-flow';
                 bgAnimContainer.appendChild(div);
             } else if (type === 'cosmic') {
                 for (let i = 0; i < 14; i++) {
-                    const orb = document.createElement('div');
-                    orb.className = 'cosmic-orb';
+                    const orb = document.createElement('div'); orb.className = 'cosmic-orb';
                     const size = Math.random() * 250 + 150;
-                    orb.style.width = size + 'px';
-                    orb.style.height = size + 'px';
-                    orb.style.left = Math.random() * 100 + 'vw';
-                    orb.style.top = Math.random() * 100 + 'vh';
+                    orb.style.width = size + 'px'; orb.style.height = size + 'px';
+                    orb.style.left = Math.random() * 100 + 'vw'; orb.style.top = Math.random() * 100 + 'vh';
                     orb.style.setProperty('--x', (Math.random() * 500 - 250) + 'px');
                     orb.style.setProperty('--y', (Math.random() * 500 - 250) + 'px');
                     orb.style.setProperty('--d', (Math.random() * 5 + 3) + 's');
@@ -561,12 +701,7 @@
         }
 
         function saveSettings() {
-            const dataToSave = { 
-                ...config, 
-                isDark: document.body.classList.contains('dark-mode'), 
-                sound: soundSelect.value,
-                animSet: animationSelect.value
-            };
+            const dataToSave = { ...config, isDark: document.body.classList.contains('dark-mode') };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
         }
 
@@ -575,8 +710,14 @@
             if (saved) {
                 const parsed = JSON.parse(saved);
                 const today = new Date().toLocaleDateString();
-                if (parsed.lastDate !== today) { parsed.completedCycles = 0; parsed.lastDate = today; }
+                if (parsed.lastDate !== today) { 
+                    parsed.completedCycles = 0; 
+                    parsed.skippedWorkCount = 0;
+                    parsed.lastDate = today; 
+                }
                 config = { ...config, ...parsed };
+                if(!config.history) config.history = {}; 
+                
                 workInput.value = config.workMs / 60000;
                 breakInput.value = config.breakMs / 60000;
                 volSlider.value = config.volume;
@@ -584,6 +725,7 @@
                 animationSelect.value = config.animSet || 'none';
                 if (config.isDark) { document.body.classList.add('dark-mode'); themeBtn.textContent = 'Light Mode'; }
                 updateCycleDisplay();
+                renderHistory();
                 timeLeft = config.workMs;
                 updateAnimation();
             }
@@ -600,7 +742,14 @@
         }
 
         function updateClock() {
-            currentInfoDisplay.textContent = new Date().toLocaleString();
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            const h = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            currentInfoDisplay.textContent = `${y}/${m}/${d} ${h}:${min}:${s}`;
         }
         setInterval(updateClock, 1000);
 
@@ -626,11 +775,13 @@
             if (isWorkMode) {
                 document.body.classList.remove('break-mode');
                 statusLabel.textContent = 'Focus';
+                historyPanel.classList.remove('manual-show');
             } else {
                 document.body.classList.add('break-mode');
                 statusLabel.textContent = 'Break';
                 config.completedCycles++;
                 updateCycleDisplay();
+                updateHistoryData(); 
                 showRandomTrivia(); 
                 saveSettings();
             }
@@ -656,6 +807,7 @@
                 if (isWorkMode) {
                     settingsWrapper.classList.add('collapsed');
                     toggleSettingsBtn.classList.remove('active');
+                    historyPanel.classList.remove('manual-show');
                 }
                 expectedEndTime = Date.now() + timeLeft;
                 timerId = setInterval(tick, 100); 
